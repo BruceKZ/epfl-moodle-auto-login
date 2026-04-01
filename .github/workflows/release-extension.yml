@@ -68,6 +68,8 @@ jobs:
           fi
 
           "${CHROME_BIN}" \
+            --no-sandbox \
+            --disable-setuid-sandbox \
             --pack-extension="${EXT_DIR}" \
             --pack-extension-key="${RUNNER_TEMP}/extension.pem"
 
