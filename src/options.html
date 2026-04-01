@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>EPFL Moodle Auto Login</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --text: #101828;
+        --muted: #475467;
+        --line: #d0d5dd;
+        --brand: #b51f1f;
+        --brand-hover: #921919;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font: 14px/1.5 "SF Pro Text", "Segoe UI", sans-serif;
+        background: linear-gradient(180deg, #f9fafb 0%, #eef2f6 100%);
+        color: var(--text);
+      }
+
+      main {
+        max-width: 720px;
+        margin: 48px auto;
+        padding: 0 20px;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid rgba(16, 24, 40, 0.08);
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 24px 60px rgba(16, 24, 40, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        line-height: 1.15;
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: var(--muted);
+      }
+
+      label {
+        display: block;
+        margin: 18px 0 8px;
+        font-weight: 600;
+      }
+
+      input[type="email"],
+      input[type="number"] {
+        width: 100%;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        font: inherit;
+      }
+
+      .checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 20px 0 28px;
+        color: var(--text);
+        font-weight: 500;
+      }
+
+      .checkbox input {
+        width: 18px;
+        height: 18px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 18px;
+        font: inherit;
+        font-weight: 700;
+        background: var(--brand);
+        color: white;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: var(--brand-hover);
+      }
+
+      #status {
+        min-height: 24px;
+        margin-top: 16px;
+        color: var(--muted);
+      }
+
+      code {
+        background: #f2f4f7;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+
+      .hint {
+        margin: 8px 0 0;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <h1>EPFL Moodle Auto Login</h1>
+        <p>
+          这里可以控制自动登录、登出后的冷却时间，以及 Microsoft 账号选择页的自动行为。
+        </p>
+
+        <label class="checkbox" for="autoLoginEnabled">
+          <input id="autoLoginEnabled" type="checkbox">
+          <span>启用 Moodle 自动登录</span>
+        </label>
+
+        <label for="logoutCooldownMinutes">点击 logout 后的冷却时间（分钟）</label>
+        <input id="logoutCooldownMinutes" type="number" min="0" step="1" placeholder="10">
+        <p class="hint">
+          设为 <code>0</code> 表示不冷却。冷却期间扩展不会自动把你送回登录流程。
+        </p>
+
+        <label class="checkbox" for="manualLoginBypassesCooldown">
+          <input id="manualLoginBypassesCooldown" type="checkbox">
+          <span>手动点击 Login 时绕过冷却，立刻继续到 EPFL - Entra ID</span>
+        </label>
+
+        <label for="fallbackEmail">备用 EPFL 邮箱</label>
+        <input id="fallbackEmail" type="email" placeholder="name@epfl.ch">
+        <p class="hint">
+          只在 Microsoft 没显示已记住账号时使用。
+        </p>
+
+        <label class="checkbox" for="autoStaySignedIn">
+          <input id="autoStaySignedIn" type="checkbox">
+          <span>自动确认 Microsoft 的 <code>Stay signed in?</code></span>
+        </label>
+
+        <button id="save" type="button">保存设置</button>
+        <div id="status" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+  </html>
