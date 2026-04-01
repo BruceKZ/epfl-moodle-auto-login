@@ -39,6 +39,37 @@
    - 备用 EPFL 邮箱，例如 `name@epfl.ch`
    - 是否自动确认 `Stay signed in?`
 
+## GitHub Release CI
+
+仓库现在包含一个 GitHub Actions 工作流：`.github/workflows/release-extension.yml`。
+
+- 每次 push 到 `main` 时，自动打包扩展
+- 生成 `zip`、`crx` 和 `sha256`
+- 更新同一个滚动的 GitHub Release：`latest`
+
+### 需要配置的 Secret
+
+在 GitHub 仓库里添加一个 repository secret：
+
+- `CRX_PRIVATE_KEY_B64`
+
+它的内容应该是同一个 CRX 签名私钥的 base64 文本。只要一直使用同一把私钥，浏览器就会把后续构建识别成同一个扩展 ID。
+
+### 生成私钥
+
+```bash
+openssl genrsa -out extension.pem 2048
+base64 < extension.pem | tr -d '\n'
+```
+
+把输出内容保存到 GitHub Secret `CRX_PRIVATE_KEY_B64` 里即可。
+
+### 说明
+
+- CI 只会在 `main` 分支 push 时更新 release
+- Release 使用固定 tag：`latest`
+- 如果你以后想要“每个版本一个 release”，把工作流改成只在 tag push 时触发会更合理
+
 ## 限制
 
 - 扩展不能直接读取你操作系统里的邮箱账户列表

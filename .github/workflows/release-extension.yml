@@ -1,0 +1,108 @@
+name: Release Extension Build
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate signing key secret
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.CRX_PRIVATE_KEY_B64 }}" ]; then
+            echo "::error::Missing repository secret CRX_PRIVATE_KEY_B64"
+            exit 1
+          fi
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Read manifest metadata
+        id: meta
+        shell: bash
+        run: |
+          VERSION="$(ruby -rjson -e 'print JSON.parse(File.read("manifest.json"))["version"]')"
+          ARTIFACT_BASE="epfl-moodle-auto-login-${VERSION}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_base=${ARTIFACT_BASE}" >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${GITHUB_SHA::7}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build zip and crx artifacts
+        shell: bash
+        env:
+          ARTIFACT_BASE: ${{ steps.meta.outputs.artifact_base }}
+        run: |
+          set -euo pipefail
+
+          EXT_DIR="${RUNNER_TEMP}/extension"
+          rm -rf "${EXT_DIR}"
+          mkdir -p "${EXT_DIR}/src"
+
+          cp manifest.json "${EXT_DIR}/"
+          cp -R src/. "${EXT_DIR}/src/"
+
+          (
+            cd "${EXT_DIR}"
+            zip -r "${RUNNER_TEMP}/${ARTIFACT_BASE}.zip" .
+          )
+
+          printf '%s' "${{ secrets.CRX_PRIVATE_KEY_B64 }}" | base64 --decode > "${RUNNER_TEMP}/extension.pem"
+
+          CHROME_BIN="$(command -v chrome || command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          if [ -z "${CHROME_BIN}" ]; then
+            echo "::error::Chrome executable not found after setup"
+            exit 1
+          fi
+
+          "${CHROME_BIN}" \
+            --pack-extension="${EXT_DIR}" \
+            --pack-extension-key="${RUNNER_TEMP}/extension.pem"
+
+          mv "${RUNNER_TEMP}/extension.crx" "${RUNNER_TEMP}/${ARTIFACT_BASE}.crx"
+          sha256sum \
+            "${RUNNER_TEMP}/${ARTIFACT_BASE}.zip" \
+            "${RUNNER_TEMP}/${ARTIFACT_BASE}.crx" > "${RUNNER_TEMP}/${ARTIFACT_BASE}.sha256"
+
+      - name: Publish rolling latest release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_BASE: ${{ steps.meta.outputs.artifact_base }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+
+          TAG="latest"
+          TITLE="Latest main build (${SHORT_SHA})"
+          NOTES=$'Automated build from the main branch.\n\n'"- Manifest version: ${VERSION}"$'\n'"- Commit: ${GITHUB_SHA}"$'\n'"- Assets: zip, crx, sha256"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${TAG}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${TAG}" --force
+
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            gh release edit "${TAG}" --title "${TITLE}" --notes "${NOTES}"
+          else
+            gh release create "${TAG}" --title "${TITLE}" --notes "${NOTES}"
+          fi
+
+          gh release upload "${TAG}" \
+            "${RUNNER_TEMP}/${ARTIFACT_BASE}.zip" \
+            "${RUNNER_TEMP}/${ARTIFACT_BASE}.crx" \
+            "${RUNNER_TEMP}/${ARTIFACT_BASE}.sha256" \
+            --clobber
